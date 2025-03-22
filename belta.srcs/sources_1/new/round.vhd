@@ -68,7 +68,7 @@ constant SBox : ByteArray := (
 constant part_len : integer := 32;
 constant KEY_COUNT : integer := 6;
 constant OCTET_LENGTH : integer := 8;
-constant ITERATION_COMPLEMENT: std_logic_vector (part_len - 1 downto I'length + 1) := (others => '0');
+constant ITERATION_COMPLEMENT: std_logic_vector (part_len - 1 downto I'length) := (others => '0');
 signal y_sig : std_logic_vector(N_IN - 1 downto 0);
 
 function sum_n(
@@ -84,7 +84,7 @@ function sub_n(
     b: std_logic_vector(part_len - 1 downto 0)
 ) return std_logic_vector is
 begin
-    return std_logic_vector(to_unsigned(2**part_len + to_integer(unsigned(A)) - to_integer(unsigned(B)), part_len));
+    return std_logic_vector(unsigned(A) - unsigned(B));
 end function;
 
 function get_round_key(
@@ -94,7 +94,10 @@ function get_round_key(
 ) return std_logic_vector is
 variable theta_num: integer;
 begin
-    theta_num := 7 * it - number;
+    theta_num := (7 * it - number) mod 8;
+    if theta_num = 0 then
+        theta_num := 8;
+    end if;    
     return key(K_IN - ((theta_num - 1) * part_len) - 1 downto K_IN - ((theta_num - 1) * part_len) - part_len);
 end function;
 
@@ -143,20 +146,7 @@ begin
     end if;
 end function;
 
-function to_little_endian(
-    x: std_logic_vector(part_len - 1 downto 0)
-) return std_logic_vector is
-variable a : STD_LOGIC_VECTOR (OCTET_LENGTH - 1 downto 0);
-variable b : STD_LOGIC_VECTOR (OCTET_LENGTH - 1 downto 0);
-variable c : STD_LOGIC_VECTOR (OCTET_LENGTH - 1 downto 0);
-variable d : STD_LOGIC_VECTOR (OCTET_LENGTH - 1 downto 0);
-begin
-    a := X(part_len - 1 downto part_len - OCTET_LENGTH);
-    b := X(part_len - OCTET_LENGTH * 1 - 1 downto part_len - OCTET_LENGTH * 2);
-    c := X(part_len - OCTET_LENGTH * 2 - 1 downto part_len - OCTET_LENGTH * 3);
-    d := X(part_len - OCTET_LENGTH * 3 - 1 downto part_len - OCTET_LENGTH * 4);
-    return d & c & b & a;   
-end function;
+
 
 begin
 
@@ -168,61 +158,63 @@ variable d : STD_LOGIC_VECTOR (part_len - 1 downto 0);
 variable e : STD_LOGIC_VECTOR (part_len - 1 downto 0);
 begin
     if (rising_edge(CLK)) then
+
         a := (X(N_IN - 1 downto N_IN - part_len));
         b := (X(N_IN - part_len * 1 - 1 downto N_IN - part_len * 2));
         c := (X(N_IN - part_len * 2 - 1 downto N_IN - part_len * 3));
         d := (X(N_IN - part_len * 3 - 1 downto N_IN - part_len * 4));
         
-        -- 1
+        -- 1 good
         b := b xor G(sum_n(a, get_round_key(KEY, to_integer(unsigned(I)), next_key_number(CIPHER, 0))), 5);
         
-        -- 2
+        -- 2 good
         c := c xor G(sum_n(d, get_round_key(KEY, to_integer(unsigned(I)), next_key_number(CIPHER, 1))), 21);
     
-        -- 3
-        a := c xor G(sub_n(b, get_round_key(KEY, to_integer(unsigned(I)), next_key_number(CIPHER, 2))), 13);
+        -- 3 good 
+        a := sub_n(a, G(sum_n(b, get_round_key(KEY, to_integer(unsigned(I)), next_key_number(CIPHER, 2))), 13));
     
-        -- 4
+        -- 4 good
         e := G(sum_n(
             sum_n(b, c), 
             get_round_key(KEY, to_integer(unsigned(I)), next_key_number(CIPHER, 3))
             ), 21) xor (ITERATION_COMPLEMENT & I);
         
-        -- 5
+        -- 5 good
         b := sum_n(b, e);
         
-        -- 6
+        -- 6 good 
         c := sub_n(c, e);
     
-        -- 7
+        -- 7 good 
         d := sum_n(d, G(sum_n(c, get_round_key(KEY, to_integer(unsigned(I)), next_key_number(CIPHER, 4))), 13));
     
-        -- 8
+        -- 8 good
         b := b xor G(sum_n(a, get_round_key(KEY, to_integer(unsigned(I)), next_key_number(CIPHER, 5))), 21);
     
-        -- 9
+        -- 9 good 
         c := c xor G(sum_n(d, get_round_key(KEY, to_integer(unsigned(I)), next_key_number(CIPHER, 6))), 5);
     
-        -- 10
+        -- 10 good
         a := a xor b;
         b := b xor a;
         a := a xor b;
         
-        -- 11
+        -- 11 good
         c := c xor d;
         d := d xor c;
         c := c xor d;
         
-        -- 12
+        -- 12 good
         b := c xor b;
         c := b xor c;
         b := c xor b;
         
-        if (CIPHER = '0') then
-            y_sig <= b & d & a & c;
-        else
-            y_sig <= c & a & d & b;
-        end if;    
+        y_sig <= a & b & c & d;
+--        if (CIPHER = '0') then
+--            y_sig <= b & d & a & c;
+--        else
+--            y_sig <= c & a & d & b;
+--        end if;    
     end if;
 end process;
 
