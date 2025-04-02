@@ -58,7 +58,7 @@ end component;
 
 constant CIPHER_TACTS : integer := 8;
 constant INPUT_SIZE : integer := 128;
-constant ITERATIONS : integer := N_IN / INPUT_SIZE;
+constant ITERATIONS : integer := N_IN / INPUT_SIZE + 1;
 
 signal current_offset : integer := N_IN;
 signal tact_number : integer := 0;
@@ -69,6 +69,40 @@ signal last_part: std_logic_vector(INPUT_SIZE - 1 downto 0);
 signal pr_last_part: std_logic_vector(INPUT_SIZE - 1 downto 0);
 signal swapper: std_logic_vector(N_IN - 1 downto 0);
 
+constant part_len : integer := 32;
+constant OCTET_LENGTH : integer := 8;
+
+
+function to_little_endian(
+    x: std_logic_vector(part_len - 1 downto 0)
+) return std_logic_vector is
+variable a : STD_LOGIC_VECTOR (OCTET_LENGTH - 1 downto 0);
+variable b : STD_LOGIC_VECTOR (OCTET_LENGTH - 1 downto 0);
+variable c : STD_LOGIC_VECTOR (OCTET_LENGTH - 1 downto 0);
+variable d : STD_LOGIC_VECTOR (OCTET_LENGTH - 1 downto 0);
+begin
+    a := X(part_len - 1 downto part_len - OCTET_LENGTH);
+    b := X(part_len - OCTET_LENGTH * 1 - 1 downto part_len - OCTET_LENGTH * 2);
+    c := X(part_len - OCTET_LENGTH * 2 - 1 downto part_len - OCTET_LENGTH * 3);
+    d := X(part_len - OCTET_LENGTH * 3 - 1 downto part_len - OCTET_LENGTH * 4);
+    return d & c & b & a;   
+end function;
+
+function value128_to_little_endian(
+    x: std_logic_vector(N_IN - 1 downto 0)
+) return std_logic_vector is
+variable a : STD_LOGIC_VECTOR (part_len - 1 downto 0);
+variable b : STD_LOGIC_VECTOR (part_len - 1 downto 0);
+variable c : STD_LOGIC_VECTOR (part_len - 1 downto 0);
+variable d : STD_LOGIC_VECTOR (part_len - 1 downto 0);
+begin
+    a := to_little_endian(X(N_IN - 1 downto N_IN - part_len));
+    b := to_little_endian(X(N_IN - part_len * 1 - 1 downto N_IN - part_len * 2));
+    c := to_little_endian(X(N_IN - part_len * 2 - 1 downto N_IN - part_len * 3));
+    d := to_little_endian(X(N_IN - part_len * 3 - 1 downto N_IN - part_len * 4));
+    return a & b & c & d;   
+end function;
+
 begin
 
 P1: process(CLK)
@@ -78,9 +112,9 @@ begin
         if not(tact_number = 0) and tact_number mod CIPHER_TACTS = 0 then
             if N_IN mod INPUT_SIZE = 0 then
                 last_part <= X(INPUT_SIZE - 1 downto 0);
-                swapper(INPUT_SIZE - 1 downto 0) <= pr_last_part;
+--                swapper(INPUT_SIZE - 1 downto 0) <= pr_last_part;
             else
-                last_part <= X(N_IN mod INPUT_SIZE downto 0) & pr_last_part(INPUT_SIZE - (N_IN mod INPUT_SIZE) - 1 downto 0);
+                last_part <= X(N_IN mod INPUT_SIZE - 1 downto 0) & pr_last_part(INPUT_SIZE - (N_IN mod INPUT_SIZE) - 1 downto 0);
                 swapper(N_IN mod INPUT_SIZE - 1 downto 0) <= pr_last_part(INPUT_SIZE - 1 downto INPUT_SIZE - (N_IN mod INPUT_SIZE));
             end if;
         end if;
@@ -117,9 +151,9 @@ cascade_n: round_cascade port map (
         );
 
 
-Y <= swapper(N_IN - 1 downto INPUT_SIZE * 2) & swapper(INPUT_SIZE - 1 downto 0) & swapper(INPUT_SIZE * 2 - 1 downto INPUT_SIZE) when N_IN mod INPUT_SIZE = 0
-     else swapper;
-
+--Y <= swapper(N_IN - 1 downto INPUT_SIZE * 2) & swapper(INPUT_SIZE - 1 downto 0) & swapper(INPUT_SIZE * 2 - 1 downto INPUT_SIZE) when N_IN mod INPUT_SIZE = 0
+--     else swapper;
+Y <= swapper;
 
 
 end Behavioral;
