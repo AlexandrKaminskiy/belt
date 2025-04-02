@@ -65,32 +65,61 @@ signal tact_number : integer := 0;
 signal it : integer := 0;
 signal current_cipher : std_logic_vector (INPUT_SIZE - 1 downto 0);
 signal current_decipher : std_logic_vector (INPUT_SIZE - 1 downto 0);
+signal last_part: std_logic_vector(INPUT_SIZE - 1 downto 0);
+signal pr_last_part: std_logic_vector(INPUT_SIZE - 1 downto 0);
+signal swapper: std_logic_vector(N_IN - 1 downto 0);
 
 begin
 
---P1: process(CLK)
---begin
+P1: process(CLK)
+begin
 
---    if rising_edge(CLK) then
---        if current_offset > 0 then
---            if not(tact_number = 0) and tact_number mod CIPHER_TACTS = 0 then
---                current_offset <= current_offset - INPUT_SIZE;
---            end if;
---        end if;
---        tact_number <= tact_number + 1;
---    end if;
+    if rising_edge(CLK) then
+        if not(tact_number = 0) and tact_number mod CIPHER_TACTS = 0 then
+            if N_IN mod INPUT_SIZE = 0 then
+                last_part <= X(INPUT_SIZE - 1 downto 0);
+                swapper(INPUT_SIZE - 1 downto 0) <= pr_last_part;
+            else
+                last_part <= X(N_IN mod INPUT_SIZE downto 0) & pr_last_part(INPUT_SIZE - (N_IN mod INPUT_SIZE) - 1 downto 0);
+                swapper(N_IN mod INPUT_SIZE - 1 downto 0) <= pr_last_part(INPUT_SIZE - 1 downto INPUT_SIZE - (N_IN mod INPUT_SIZE));
+            end if;
+        end if;
+        tact_number <= tact_number + 1;
+
+    end if;
 --    current_cipher <= X(current_offset - 1 downto current_offset - INPUT_SIZE);
 --    Y(current_offset - 1 downto current_offset - INPUT_SIZE) <= current_decipher;
 
---end process;
+end process;
 
-GEN: FOR I IN 0 TO ITERATIONS - 1 GENERATE
+GEN: FOR I IN 0 TO ITERATIONS - 3 GENERATE
     cascade: round_cascade port map (
         CLK, 
         X(N_IN - INPUT_SIZE * I - 1 downto N_IN - INPUT_SIZE * (I + 1)), 
         KEY, 
-        Y(N_IN - INPUT_SIZE * I - 1 downto N_IN - INPUT_SIZE * (I + 1))
+        swapper(N_IN - INPUT_SIZE * I - 1 downto N_IN - INPUT_SIZE * (I + 1))
     );
 END GENERATE;
+    
+cascade_n_m1: round_cascade port map (
+            CLK, 
+            X(N_IN - INPUT_SIZE * (ITERATIONS - 2) - 1 downto N_IN - INPUT_SIZE * (ITERATIONS - 2 + 1)), 
+            KEY, 
+            pr_last_part
+        );
+            
+cascade_n: round_cascade port map (
+            CLK, 
+            last_part, 
+            KEY, 
+            -- предпоследний 3 - 2 = 1 -- 324 - 128 = 256
+            swapper(N_IN - INPUT_SIZE * (ITERATIONS - 2) - 1 downto N_IN - INPUT_SIZE * ((ITERATIONS - 2) + 1))
+        );
+
+
+Y <= swapper(N_IN - 1 downto INPUT_SIZE * 2) & swapper(INPUT_SIZE - 1 downto 0) & swapper(INPUT_SIZE * 2 - 1 downto INPUT_SIZE) when N_IN mod INPUT_SIZE = 0
+     else swapper;
+
+
 
 end Behavioral;

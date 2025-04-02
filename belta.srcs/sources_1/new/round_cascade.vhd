@@ -126,6 +126,20 @@ begin
     return a & b & c & d & e & f & g & h;   
 end function;
 
+function final_permutation(
+    X: std_logic_vector(N_IN - 1 downto 0)
+) return std_logic_vector is
+variable a : STD_LOGIC_VECTOR (part_len - 1 downto 0);
+variable b : STD_LOGIC_VECTOR (part_len - 1 downto 0);
+variable c : STD_LOGIC_VECTOR (part_len - 1 downto 0);
+variable d : STD_LOGIC_VECTOR (part_len - 1 downto 0);
+begin
+    a := X(N_IN - 1 downto N_IN - part_len);
+    b := X(N_IN - part_len * 1 - 1 downto N_IN - part_len * 2);
+    c := X(N_IN - part_len * 2 - 1 downto N_IN - part_len * 3);
+    d := X(N_IN - part_len * 3 - 1 downto N_IN - part_len * 4);
+    return b & d & a & c;   
+end function;
 
 begin
 
@@ -157,6 +171,6 @@ CASCADE: FOR I IN 2 TO ITERATION_QUANTITY GENERATE
 
 END GENERATE;
 
-Y <= y_holder(7);
+Y <= final_permutation(y_holder(7));
 
 end Behavioral;
