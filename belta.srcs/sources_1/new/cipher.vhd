@@ -68,6 +68,7 @@ signal current_decipher : std_logic_vector (INPUT_SIZE - 1 downto 0);
 signal last_part: std_logic_vector(INPUT_SIZE - 1 downto 0);
 signal pr_last_part: std_logic_vector(INPUT_SIZE - 1 downto 0);
 signal swapper: std_logic_vector(N_IN - 1 downto 0);
+signal y_sig: std_logic_vector(N_IN - 1 downto 0);
 
 constant part_len : integer := 32;
 constant OCTET_LENGTH : integer := 8;
@@ -89,23 +90,25 @@ begin
 end function;
 
 function value128_to_little_endian(
-    x: std_logic_vector(N_IN - 1 downto 0)
+    x: std_logic_vector(INPUT_SIZE - 1 downto 0)
 ) return std_logic_vector is
 variable a : STD_LOGIC_VECTOR (part_len - 1 downto 0);
 variable b : STD_LOGIC_VECTOR (part_len - 1 downto 0);
 variable c : STD_LOGIC_VECTOR (part_len - 1 downto 0);
 variable d : STD_LOGIC_VECTOR (part_len - 1 downto 0);
 begin
-    a := to_little_endian(X(N_IN - 1 downto N_IN - part_len));
-    b := to_little_endian(X(N_IN - part_len * 1 - 1 downto N_IN - part_len * 2));
-    c := to_little_endian(X(N_IN - part_len * 2 - 1 downto N_IN - part_len * 3));
-    d := to_little_endian(X(N_IN - part_len * 3 - 1 downto N_IN - part_len * 4));
+    a := to_little_endian(X(INPUT_SIZE - 1 downto INPUT_SIZE - part_len));
+    b := to_little_endian(X(INPUT_SIZE - part_len * 1 - 1 downto INPUT_SIZE - part_len * 2));
+    c := to_little_endian(X(INPUT_SIZE - part_len * 2 - 1 downto INPUT_SIZE - part_len * 3));
+    d := to_little_endian(X(INPUT_SIZE - part_len * 3 - 1 downto INPUT_SIZE - part_len * 4));
     return a & b & c & d;   
 end function;
 
 begin
 
 P1: process(CLK)
+
+variable pr_last_part_be : STD_LOGIC_VECTOR (INPUT_SIZE - 1 downto 0);
 begin
 
     if rising_edge(CLK) then
@@ -114,8 +117,9 @@ begin
                 last_part <= X(INPUT_SIZE - 1 downto 0);
 --                swapper(INPUT_SIZE - 1 downto 0) <= pr_last_part;
             else
-                last_part <= X(N_IN mod INPUT_SIZE - 1 downto 0) & pr_last_part(INPUT_SIZE - (N_IN mod INPUT_SIZE) - 1 downto 0);
-                swapper(N_IN mod INPUT_SIZE - 1 downto 0) <= pr_last_part(INPUT_SIZE - 1 downto INPUT_SIZE - (N_IN mod INPUT_SIZE));
+                pr_last_part_be := value128_to_little_endian(pr_last_part);
+                last_part <= X(N_IN mod INPUT_SIZE - 1 downto 0) & pr_last_part_be(INPUT_SIZE - (N_IN mod INPUT_SIZE) - 1 downto 0);
+                swapper(N_IN mod INPUT_SIZE - 1 downto 0) <= pr_last_part_be(INPUT_SIZE - 1 downto N_IN - (N_IN mod INPUT_SIZE));
             end if;
         end if;
         tact_number <= tact_number + 1;
@@ -153,7 +157,13 @@ cascade_n: round_cascade port map (
 
 --Y <= swapper(N_IN - 1 downto INPUT_SIZE * 2) & swapper(INPUT_SIZE - 1 downto 0) & swapper(INPUT_SIZE * 2 - 1 downto INPUT_SIZE) when N_IN mod INPUT_SIZE = 0
 --     else swapper;
-Y <= swapper;
+
+gen_regs: for I in 0 to ITERATIONS - 2 generate
+    y_sig(N_IN - INPUT_SIZE * I - 1 downto N_IN - INPUT_SIZE * (I + 1)) <= value128_to_little_endian(swapper(N_IN - INPUT_SIZE * I - 1 downto N_IN - INPUT_SIZE * (I + 1)));
+end generate;
+y_sig(N_IN mod INPUT_SIZE - 1 downto 0) <= swapper(N_IN mod INPUT_SIZE - 1 downto 0);
+
+Y <= y_sig;
 
 
 end Behavioral;
