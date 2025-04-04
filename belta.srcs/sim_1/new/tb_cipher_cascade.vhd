@@ -52,8 +52,8 @@ end component;
 signal s_cipher : std_logic := '0';
 signal s_clk : std_logic := '0';
 signal s_i : std_logic_vector(3 downto 0) := "0001";
-signal s_x : std_logic_vector(127 downto 0) := x"B194BAC80A08F53B366D008E584A5DE4";
-signal s_key : std_logic_vector(255 downto 0) := x"E9DEE72C8F0C0FA62DDB49F46F73964706075316ED247A3739CBA38303A98BF6";
+signal s_x : std_logic_vector(127 downto 0) := x"E12BDC1AE28257EC703FCCF095EE8DF1";
+signal s_key : std_logic_vector(255 downto 0) := x"92BD9B1CE5D141015445FBC95E4D0EF2682080AA227D642F2687F93490405511";
 signal s_y : std_logic_vector(127 downto 0);
 
 begin

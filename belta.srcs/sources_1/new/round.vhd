@@ -209,12 +209,12 @@ begin
         c := b xor c;
         b := c xor b;
         
-        y_sig <= a & b & c & d;
---        if (CIPHER = '0') then
---            y_sig <= b & d & a & c;
---        else
---            y_sig <= c & a & d & b;
---        end if;    
+--        y_sig <= a & b & c & d;
+        if (CIPHER = '0') then
+            y_sig <= a & b & c & d;
+        else
+            y_sig <= d & c & b & a;
+        end if;    
     end if;
 end process;
 
